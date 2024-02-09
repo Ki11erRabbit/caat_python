@@ -5,8 +5,8 @@ import json
 import subprocess
 import sys
 
-socket_var_name = 'CAAT_SOCKET'
-cmd_line_var_name = 'CAAT_ARGS'
+SOCKET_NAME = 'CAAT_SOCKET'
+ARGS_NAME = 'CAAT_ARGS'
 
 
 """
@@ -40,6 +40,7 @@ class ForeignFunction:
         self.cmd = cmd
 
     def __call__(self, *args, **kwargs):
+        global SOCKET_NAME, ARGS_NAME
         pid = os.getpid()
         socket_path = f'/tmp/caat_{pid}.sock'
         try:
@@ -55,8 +56,8 @@ class ForeignFunction:
         json_data = json.dumps(args)
         command = [self.cmd] + list(map(lambda x: str(x), args))
         env = os.environ.copy()
-        env[socket_var_name] = socket_path
-        env[cmd_line_var_name] = json_data
+        env[SOCKET_NAME] = socket_path
+        env[ARGS_NAME] = json_data
         subproc = subprocess.Popen(command, env=env)
 
         server.listen(1)
@@ -89,19 +90,21 @@ class ForeignFunction:
 
 
 def get_arguments() -> list:
-    if cmd_line_var_name in os.environ:
-        return json.loads(os.environ[cmd_line_var_name])
+    global ARGS_NAME
+    if ARGS_NAME in os.environ:
+        return json.loads(os.environ[ARGS_NAME])
     else:
         return sys.argv
 
-
-argv = get_arguments()
+globals()['argv'] = get_arguments()
+#argv = get_arguments()
 
 
 def return_caat(arg):
+    global SOCKET_NAME
     data = json.dumps(arg)
     env = os.environ.copy()
-    socket_path = env[socket_var_name]
+    socket_path = env[SOCKET_NAME]
     client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
     connected = False
