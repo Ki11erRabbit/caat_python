@@ -48,6 +48,7 @@ class ForeignFunction:
             if os.path.exists(socket_path):
                 raise
         server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM | socket.SOCK_NONBLOCK)
+        server.setblocking(0)
         server.bind(socket_path)
 
         # spawn command
@@ -61,22 +62,24 @@ class ForeignFunction:
         server.listen(1)
         read_list = [server]
         conn = None
-        while True:
-            readable, writable, errored = select.select(read_list, [], [])
+        loop = True
+        while loop:
+            readable, writable, errored = select.select(read_list, [], [], 1)
             for s in readable:
                 if s is server:
                     conn, addr = server.accept()
+                    loop = False
                     break
             if subproc.poll() is not None:
                 return subproc.returncode
 
         try:
-            buffer = []
+            buffer = ""
             while True:
                 data = conn.recv(1024)
                 if not data:
                     break
-                buffer.append(data)
+                buffer += data.decode('utf-8')
             return json.loads(buffer)
         finally:
             conn.close()
