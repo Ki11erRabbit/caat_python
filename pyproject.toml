@@ -2,7 +2,7 @@
 name = "caat"
 version = "0.1.0"
 authors = [
-    { names="Alec Davis", email="alecdavis@killerrabbit.xyz" },
+    { name="Alec Davis", email="alecdavis@killerrabbit.xyz" },
 ]
 description = "CAAT: Commands as Arrow Types, a FFI that works across languages."
 readme = "README.md"
