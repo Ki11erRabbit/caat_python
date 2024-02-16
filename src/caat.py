@@ -54,6 +54,7 @@ class ForeignFunction:
 
         # spawn command
         json_data = [__dump__(x) for x in args]
+        json_data = json.dumps(json_data)
         command = [self.cmd] + list(map(lambda x: str(x), args))
         env = os.environ.copy()
         env[SOCKET_NAME] = socket_path
@@ -151,6 +152,7 @@ globals()['argv'] = get_arguments()
 def return_caat(arg):
     global SOCKET_NAME
     data = __dump__(arg)
+    data = json.dumps(data)
     env = os.environ.copy()
     socket_path = env[SOCKET_NAME]
     client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
