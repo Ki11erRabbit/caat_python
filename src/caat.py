@@ -53,7 +53,7 @@ class ForeignFunction:
         server.bind(socket_path)
 
         # spawn command
-        json_data = json.dumps(args)
+        json_data = [__dump__(x) for x in args]
         command = [self.cmd] + list(map(lambda x: str(x), args))
         env = os.environ.copy()
         env[SOCKET_NAME] = socket_path
@@ -89,20 +89,68 @@ class ForeignFunction:
         return subproc.returncode
 
 
+def __dump__(x):
+    if isinstance(x, list):
+        return {'type': 'List', 'value': list(map(__dump__, x))}
+    elif isinstance(x, dict):
+        return {'type': 'Map', 'value': {k: __dump__(v) for k, v in x.items()}}
+    elif isinstance(x, ForeignFunction):
+        return {'type': 'CAAT', 'value': x.cmd + " " + ' '.join(map(lambda x: str(x), x.args))}
+    elif isinstance(x, str):
+        return {'type': 'String', 'value': x}
+    elif isinstance(x, int):
+        return {'type': 'Integer', 'value': x}
+    elif isinstance(x, float):
+        return {'type': 'Float', 'value': x}
+    elif isinstance(x, bool):
+        return {'type': 'Boolean', 'value': x}
+    elif x is None:
+        return {'type': 'Null', 'value': None}
+    else:
+        return x
+
+
 def get_arguments() -> list:
     global ARGS_NAME
     if ARGS_NAME in os.environ:
-        return json.loads(os.environ[ARGS_NAME])
+        json_args = json.loads(os.environ[ARGS_NAME])
+
+        def convert(x):
+            if isinstance(x, list):
+                return list(map(convert, x))
+            elif isinstance(x, dict):
+                the_type = x.get('type', None)
+                value = x.get('value', None)
+                match the_type:
+                    case 'Integer':
+                        return int(value)
+                    case 'Float':
+                        return float(value)
+                    case 'Boolean':
+                        return bool(value)
+                    case 'String':
+                        return str(value)
+                    case 'List':
+                        return convert(value)
+                    case 'Map':
+                        return {k: convert(v) for k, v in value.items()}
+                    case 'CAAT':
+                        return ForeignFunction(value)
+                    case _:
+                        return x
+        return list(map(convert, json_args))
+
     else:
         return sys.argv
 
+
 globals()['argv'] = get_arguments()
-#argv = get_arguments()
+# argv = get_arguments()
 
 
 def return_caat(arg):
     global SOCKET_NAME
-    data = json.dumps(arg)
+    data = __dump__(arg)
     env = os.environ.copy()
     socket_path = env[SOCKET_NAME]
     client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
